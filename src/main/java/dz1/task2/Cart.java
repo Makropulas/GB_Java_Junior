@@ -2,8 +2,10 @@ package dz1.task2;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Predicate;
 
 /**
  * Корзина
@@ -38,43 +40,103 @@ public class Cart<T extends Food> {
 
     //endregion
 
-    public void cartBalancing() {
-        AtomicBoolean proteins = new AtomicBoolean(false);
-        AtomicBoolean fats = new AtomicBoolean(false);
-        AtomicBoolean carbohydrates = new AtomicBoolean(false);
+//    public void cartBalancing() {
+//        AtomicBoolean proteins = new AtomicBoolean(false);
+//        AtomicBoolean fats = new AtomicBoolean(false);
+//        AtomicBoolean carbohydrates = new AtomicBoolean(false);
+//
+//        foodstuffs.forEach(food -> {
+//            if (!proteins.get() && food.getProteins())
+//                proteins.set(true);
+//            else if (!fats.get() && food.getFats())
+//                fats.set(true);
+//            else if (!carbohydrates.get() && food.getCarbohydrates())
+//                carbohydrates.set(true);
+//        });
+//
+//        if (proteins.get() && fats.get() && carbohydrates.get()) {
+//            System.out.println("Корзина уже сбалансирована по БЖУ.");
+//            return;
+//        }
+//
+//        market.getThings(clazz).forEach(thing -> {
+//            if (!proteins.get() && thing.getProteins()) {
+//                proteins.set(true);
+//                foodstuffs.add(thing);
+//            } else if (!fats.get() && thing.getFats()) {
+//                fats.set(true);
+//                foodstuffs.add(thing);
+//            } else if (!carbohydrates.get() && thing.getCarbohydrates()) {
+//                carbohydrates.set(true);
+//                foodstuffs.add(thing);
+//            }
+//        });
+//
+//        if (proteins.get() && fats.get() && carbohydrates.get())
+//            System.out.println("Корзина сбалансирована по БЖУ.");
+//        else
+//            System.out.println("Невозможно сбалансировать корзину по БЖУ.");
+//
+//    }
 
-        foodstuffs.forEach(food -> {
-            if (!proteins.get() && food.getProteins())
-                proteins.set(true);
-            else if (!fats.get() && food.getFats())
-                fats.set(true);
-            else if (!carbohydrates.get() && food.getCarbohydrates())
-                carbohydrates.set(true);
-        });
+    /**
+     * Балансировка корзины
+     */
+    public void cartBalancing()
+    {
+        boolean proteins = checkNutrientFlag(Food::getProteins);
+        boolean fats = checkNutrientFlag(Food::getFats);
+        boolean carbohydrates = checkNutrientFlag(Food::getCarbohydrates);
 
-        if (proteins.get() && fats.get() && carbohydrates.get()) {
+        if (proteins && fats && carbohydrates) {
             System.out.println("Корзина уже сбалансирована по БЖУ.");
             return;
         }
 
-        market.getThings(clazz).forEach(thing -> {
-            if (!proteins.get() && thing.getProteins()) {
-                proteins.set(true);
-                foodstuffs.add(thing);
-            } else if (!fats.get() && thing.getFats()) {
-                fats.set(true);
-                foodstuffs.add(thing);
-            } else if (!carbohydrates.get() && thing.getCarbohydrates()) {
-                carbohydrates.set(true);
-                foodstuffs.add(thing);
-            }
-        });
+        Collection<T> marketFoods = market.getThings(clazz);
+        proteins = checkNutrientFlag(proteins, Food::getProteins, marketFoods);
+        fats = checkNutrientFlag(fats, Food::getFats, marketFoods);
+        carbohydrates = checkNutrientFlag(carbohydrates, Food::getCarbohydrates, marketFoods);
 
-        if (proteins.get() && fats.get() && carbohydrates.get())
+        if (proteins && fats && carbohydrates) {
             System.out.println("Корзина сбалансирована по БЖУ.");
-        else
+        } else {
             System.out.println("Невозможно сбалансировать корзину по БЖУ.");
+        }
 
+    }
+
+    /**
+     * Проверка наличия конкретного питательного элемента в корзине
+     * @param nutrientCheck список продуктов в корзине
+     * @return состояние обновленного флага питательного элемента
+     */
+    private boolean checkNutrientFlag(Predicate<Food> nutrientCheck) {
+        Optional<T> optionalFood = foodstuffs.stream()
+                .filter(nutrientCheck)
+                .findFirst();
+        return optionalFood.isPresent();
+    }
+
+    /**
+     * Поиск недостающих питательных элементов в корзине и добавление питательно элемента
+     * исходя из общего фильтра продуктов
+     * @param nutrientFlag наличие питательного элемента
+     * @param nutrientCheck список продуктов в корзине
+     * @param foods доступный список продуктов (исходя из текущего фильтра)
+     * @return состояние обновленного флага питательного элемента (скорее всего будет true,
+     * false - в случае, если невозможно найти продукт с нужным питательным элементом, в таком
+     * случае, невозможно сбалансировать корзину по БЖУ
+     */
+    private boolean checkNutrientFlag(boolean nutrientFlag, Predicate<Food> nutrientCheck, Collection<T> foods) {
+        if (!nutrientFlag) {
+            Optional<T> optionalFood = foods.stream()
+                    .filter(nutrientCheck)
+                    .findFirst();
+            optionalFood.ifPresent(foodstuffs::add);
+            return optionalFood.isPresent();
+        }
+        return true;
     }
 
     public Collection<T> getFoodstuffs() {
